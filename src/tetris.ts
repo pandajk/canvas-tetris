@@ -223,13 +223,13 @@ class Tetris extends Game {
     const {
       grids: [x],
     } = this.scene;
-    const randomShape = 0; //Math.floor(Math.random() * this.shapes.length);
+    const randomShape = Math.floor(Math.random() * this.shapes.length);
 
     const shape = JSON.parse(
       JSON.stringify(this.shapes.slice(randomShape, randomShape + 1)[0])
     ) as StageTetrisShape;
 
-    const direction = 1; //Math.round(Math.random() * 4 - 2) as RotateDirection;
+    const direction = Math.round(Math.random() * 4 - 2) as RotateDirection;
 
     const rotateActions = [
       this.rotateMatrixRight,
@@ -574,7 +574,6 @@ class Tetris extends Game {
     if (shapeMatrixValidLength + tower.length + y < gridY) return true;
 
     let canMerge = true;
-    debugger;
 
     // 检测指定的一行是否可以合并，shapeRow 和 towerRow
     function _checkRowMergeable(row: any, towerRow: any) {
