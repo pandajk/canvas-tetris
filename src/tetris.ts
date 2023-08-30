@@ -14,8 +14,6 @@ type StageTetrisShape = TetrisShape & {
   offset: {
     left: number;
     right: number;
-    top: number;
-    bottom: number;
   };
 };
 class Tetris extends Game {
@@ -149,52 +147,14 @@ class Tetris extends Game {
     // } = this.scene;
 
     this.tower = [
-      //   new Array(x).fill([0, 1]).map((_, i) => (i % 2) as MatrixData),
-      //   new Array(x).fill([0, 1]).map((_, i) => (i % 3) as MatrixData),
-      //   new Array(x).fill([0, 1]).map((_, i) => (i % 5) as MatrixData),
-      //   new Array(x).fill([0, 1]).map((_, i) => (i % 5) as MatrixData),
-      //   new Array(x).fill([0, 1]).map((_, i) => (i % 5) as MatrixData),
+      // new Array(x).fill([0, 1]).map((_, i) => (i % 2) as MatrixData),
+      // new Array(x).fill([0, 1]).map((_, i) => (i % 3) as MatrixData),
+      // new Array(x).fill([0, 1]).map((_, i) => (i % 5) as MatrixData),
+      // new Array(x).fill([0, 1]).map((_, i) => (i % 5) as MatrixData),
+      // new Array(x).fill([0, 1]).map((_, i) => (i % 5) as MatrixData),
     ];
   }
 
-  private renderBackground() {
-    const { ctx } = this;
-    const {
-      background,
-      //   width,
-      //   height,
-      gridSize = 0,
-      grids: [gridX, gridY],
-    } = this.scene;
-    this.ctx.fillStyle = background.color;
-
-    const width = gridSize * gridX;
-    const height = gridSize * gridY;
-    this.ctx.fillRect(0, 0, width, height);
-
-    ctx.fillStyle = "#fff";
-    ctx.strokeStyle = "#ddd";
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-
-    // horizontal
-    for (let i = 0; i <= gridX; i++) {
-      ctx.moveTo(i * gridSize, 0);
-      ctx.lineTo(i * gridSize, height);
-      if (i < gridX) {
-        ctx.fillText(i.toString(), i * gridSize + gridSize / 4, gridSize / 2);
-      }
-    }
-    // vertical
-    for (let i = 0; i <= gridY; i++) {
-      ctx.moveTo(0, i * gridSize);
-      ctx.lineTo(width, i * gridSize);
-      if (i < gridY) {
-        ctx.fillText(i.toString(), 4, i * gridSize + gridSize / 2);
-      }
-    }
-    ctx.stroke();
-  }
   private renderTower() {
     const {
       ctx,
@@ -225,9 +185,10 @@ class Tetris extends Game {
     } = this.scene;
     const randomShape = Math.floor(Math.random() * this.shapes.length);
 
-    const shape = JSON.parse(
-      JSON.stringify(this.shapes.slice(randomShape, randomShape + 1)[0])
-    ) as StageTetrisShape;
+    const shape = this.shapes.slice(
+      randomShape,
+      randomShape + 1
+    )[0] as StageTetrisShape;
 
     const direction = Math.round(Math.random() * 4 - 2) as RotateDirection;
 
@@ -246,6 +207,7 @@ class Tetris extends Game {
       matrix = this.fillMatrix(matrix);
     }
     shape.matrix = matrix;
+    console.log("shape", matrix);
 
     const offset = this.getShapeMatrixOffset(matrix);
 
@@ -262,35 +224,30 @@ class Tetris extends Game {
   }
 
   getShapeMatrixOffset(matrix: TetrisMatrix) {
-    const getOffset = (newMatrix: TetrisMatrix) => {
-      const sum = newMatrix.map((row) => {
-        return row.reduce((prev: number, cur: number) => {
-          return prev + cur;
-        }, 0);
-      });
-      let front: number | null = null;
-      let back: number = 0;
-      sum.forEach((rst) => {
-        if (rst && front === null) {
-          front = 0;
-        }
-        if (!rst && front !== 0) {
-          front = front ? front + 1 : 1;
-        }
+    const newMatrix = this.rotateMatrixLeft(matrix);
+    console.log("newMatrix", newMatrix);
+    const sum = newMatrix.map((row) => {
+      return row.reduce((prev: number, cur: number) => {
+        return prev + cur;
+      }, 0);
+    });
+    let left: number | null = null;
+    let right: number = 0;
+    sum.forEach((rst) => {
+      if (rst && left === null) {
+        left = 0;
+      }
+      if (!rst && left !== 0) {
+        left = left ? left + 1 : 1;
+      }
 
-        if (!rst) {
-          back += 1;
-        } else {
-          back = 0;
-        }
-      });
-      return [front || 0, back];
-    };
-
-    const [top, bottom] = getOffset(matrix);
-    const [left, right] = getOffset(this.rotateMatrixLeft(matrix));
-
-    return { top, bottom, left, right };
+      if (!rst) {
+        right += 1;
+      } else {
+        right = 0;
+      }
+    });
+    return { left: left || 0, right };
   }
 
   private renderShape(shape: StageTetrisShape) {
@@ -320,19 +277,10 @@ class Tetris extends Game {
     });
   }
   public onSceneLoading(): void {
-    const {
-      scene: {
-        width,
-        height,
-        grids: [x, y],
-      },
-    } = this;
-    this.scene.gridSize = Math.floor(Math.min(width / x, height / y) / 2) * 2;
     this.initShapes();
     this.initTower();
   }
   public onSceneRender(): void {
-    this.renderBackground();
     this.renderTower();
   }
   public onGameSuspend(): void {}
@@ -348,19 +296,16 @@ class Tetris extends Game {
     }
   }
 
-  public onGameReady(): void {
-    // this.gameStart();
-    this.subscriber("onGameReady", { score: 1 });
-  }
+  public onGameReady(): void {}
 
   public onGameStart(): void {
-    this.onStageRender();
-    requestAnimationFrame(this.onProcessing.bind(this));
+    this.stageRender();
+    requestAnimationFrame(this.processing.bind(this));
   }
-  private onProcessing(time: any) {
+  private processing(time: any) {
     if (this.status !== "start") return;
     if (!this.stageShape) {
-      requestAnimationFrame(this.onProcessing.bind(this));
+      requestAnimationFrame(this.processing.bind(this));
       return;
     }
     if (this.stageShape.position.y > this.scene.grids[1]) {
@@ -368,34 +313,44 @@ class Tetris extends Game {
 
       return;
     }
-
-    //
     if (
       time - this.frameFlashAt > 1000 / this.frames &&
       !this.isRenderProcessing
     ) {
-      this.isRenderProcessing = true;
       this.frameFlashAt = time;
-      const isTouched = !this.boundaryDetect();
-      // 掉落方块与堆积塔接触
-      if (isTouched) {
-        // 合并数据
-        this.mergeMatrix();
-        // 计算
-        this.accountingResult();
-        this.stageShape = null;
-        this.onStageLoading();
-      } else {
-        this.stageShape.position.y += this.moveStep;
-      }
-      this.resetStage();
-      this.isRenderProcessing = false;
-    }
 
-    requestAnimationFrame(this.onProcessing.bind(this));
+      this.onProcessing.call(this);
+    }
+    requestAnimationFrame(this.processing.bind(this));
   }
 
-  private accountingResult() {
+  private onProcessing() {
+    this.isRenderProcessing = true;
+    const isTouched = !this.boundaryDetect();
+    // 掉落方块与堆积塔接触
+    if (isTouched) {
+      // 合并数据
+      this.mergeMatrix();
+      // 计算
+      this.gameAccountResult();
+      this.stageReLoad();
+    } else {
+      this.moveStepDownStageShape.call(this);
+    }
+    this.resetStage();
+    this.isRenderProcessing = false;
+  }
+
+  /**
+   * @onGameAccountResult
+   * The function checks if the tower is full and ends the game if it is, otherwise it calculates the
+   * score based on completed rows and updates the tower and score.
+   * @returns In this code, the `onGameAccountResult` function does not explicitly return anything.
+   * However, there is a `return` statement inside an `if` condition that calls the `gameOver` function.
+   * If the condition is met, the `gameOver` function is called and the function execution is terminated,
+   * so nothing is returned. If the condition is not met, the function continues to execute
+   */
+  public onGameAccountResult(): void {
     if (this.tower.length >= this.scene.grids[1]) {
       this.gameOver();
       return;
@@ -406,11 +361,7 @@ class Tetris extends Game {
         result.push(index);
       }
     });
-    this.onAccountedResult(result);
-  }
 
-  private onAccountedResult(result: number[]) {
-    console.log("onAccountedResult", result);
     if (result.length > 0) {
       if (result.length >= 4) {
         this.score += 500;
@@ -427,6 +378,13 @@ class Tetris extends Game {
     }
   }
 
+  /**
+   * @rotateMatrixLeft
+   * The `rotateMatrixLeft` function rotates a given matrix 90 degrees to the left.
+   * @param {TetrisMatrix} res - The parameter `res` is of type `TetrisMatrix`, which is likely a
+   * two-dimensional array representing a Tetris game board.
+   * @returns the rotated matrix after trimming it.
+   */
   private rotateMatrixLeft(res: TetrisMatrix) {
     const matrix = this.fillMatrix(res) as TetrisMatrix;
     const n = matrix.length;
@@ -451,6 +409,13 @@ class Tetris extends Game {
 
     return this.trimMatrix(matrix);
   }
+  /**
+   * @rotateMatrixRight
+   * The function rotates a given matrix 90 degrees to the right.
+   * @param {TetrisMatrix} res - The parameter `res` is of type `TetrisMatrix`, which is the type of the
+   * matrix being rotated.
+   * @returns the rotated matrix after performing the rotation operation.
+   */
   private rotateMatrixRight(res: TetrisMatrix) {
     const matrix = this.fillMatrix(res) as TetrisMatrix;
     const n = matrix.length;
@@ -505,8 +470,7 @@ class Tetris extends Game {
     if (!this.stageShape) return;
     const { matrix } = this.stageShape;
     this.stageShape.matrix = this.rotateMatrixLeft(matrix) as TetrisMatrix;
-
-    this.stageShape.offset = this.getShapeMatrixOffset(this.stageShape.matrix);
+    console.log(this.stageShape.matrix);
 
     this.onStageRender();
   }
@@ -514,10 +478,6 @@ class Tetris extends Game {
     if (!this.stageShape) return;
     const { matrix } = this.stageShape;
     this.stageShape.matrix = this.rotateMatrixRight(matrix) as TetrisMatrix;
-    const offset = this.getShapeMatrixOffset(this.stageShape.matrix);
-    console.log("offset", offset);
-
-    this.stageShape.offset = offset;
     this.onStageRender();
   }
 
@@ -529,14 +489,15 @@ class Tetris extends Game {
       // this.getNextShape();
       return;
     }
-    this.stageShape.position.y += this.moveStep;
+    this.moveStepDownStageShape();
     this.onStageRender();
   }
   private onHandleLeft() {
     if (!this.stageShape?.position) return;
     const { position, offset } = this.stageShape;
     if (position.x + (offset?.left || 0) <= 0) return;
-    this.stageShape.position.x -= this.moveStep;
+
+    this.moveStepLeftStageShape();
     this.onStageRender();
   }
   private onHandleRight() {
@@ -547,10 +508,17 @@ class Tetris extends Game {
       this.scene.grids[0]
     )
       return;
-    this.stageShape.position.x += this.moveStep;
+
+    this.moveStepRightStageShape();
     this.onStageRender();
   }
 
+  /**
+   * @boundaryDetect
+   * The `boundaryDetect` function checks if a shape can merge with a tower without exceeding the
+   * boundaries of the screen.
+   * @returns a boolean value.
+   */
   private boundaryDetect() {
     if (!this.stageShape?.position) return false;
 
@@ -558,20 +526,17 @@ class Tetris extends Game {
       stageShape: {
         matrix: shapeMatrix,
         position: { x, y },
-        offset: { top, bottom },
       },
       scene: {
         grids: [, gridY],
       },
       tower,
     } = this;
-    const shapeMatrixValidLength = shapeMatrix.length - top - bottom;
-    // shape 不能超出屏幕
-    if (shapeMatrixValidLength + y >= gridY) return false;
-    // shape 和 tower 还没有相遇
-    // console.log(shapeMatrix.length, tower.length, y, gridY);
 
-    if (shapeMatrixValidLength + tower.length + y < gridY) return true;
+    // shape 不能超出屏幕
+    if (shapeMatrix.length + y >= gridY) return false;
+    // shape 和 tower 还没有相遇
+    if (shapeMatrix.length + tower.length + y < gridY) return true;
 
     let canMerge = true;
 
@@ -589,11 +554,9 @@ class Tetris extends Game {
     }
 
     // 重叠的行
-    const overlapRow = shapeMatrixValidLength + tower.length + y - gridY + 1;
-    console.log("overlapRow", overlapRow);
-
+    const overlapRow = shapeMatrix.length + tower.length + y - gridY + 1;
     // 需要检查的行数
-    let j = Math.min(overlapRow, shapeMatrixValidLength);
+    let j = Math.min(overlapRow, shapeMatrix.length);
 
     // 检测重叠的行是否可以合并
     while (j--) {
@@ -601,15 +564,20 @@ class Tetris extends Game {
 
       // TODO：使用堆栈实现 tower
       // 先进后出，检测，
-      const stageMatrixRow = shapeMatrix[shapeMatrixValidLength - 1 - j];
+      const stageMatrixRow = shapeMatrix[shapeMatrix.length - 1 - j];
       const towerRow = tower[tower.length - overlapRow + j];
-      if (towerRow) {
-        canMerge = _checkRowMergeable(stageMatrixRow, towerRow);
-      }
+      canMerge = _checkRowMergeable(stageMatrixRow, towerRow);
     }
 
     return canMerge;
   }
+  /**
+   * @mergeMatrix
+   * The `mergeMatrix` function merges a matrix representing a shape onto a tower matrix, taking into
+   * account the position of the shape and the size of the tower.
+   * @returns There is no return statement in the `mergeMatrix()` function, so it does not return any
+   * value.
+   */
   private mergeMatrix() {
     if (!this.stageShape?.position) return;
     const {
@@ -677,6 +645,18 @@ class Tetris extends Game {
   public speedUp() {
     this.moveStep += 0.1;
     console.log("speedUp", this.frames);
+  }
+
+  /* The above code is defining three methods in a TypeScript class. These methods are used to move a
+shape on a stage. */
+  moveStepDownStageShape() {
+    this.stageShape!.position.y += this.moveStep;
+  }
+  moveStepLeftStageShape() {
+    this.stageShape!.position.x -= this.moveStep;
+  }
+  moveStepRightStageShape() {
+    this.stageShape!.position.x += this.moveStep;
   }
 
   public setSubscriber(fn: Function) {
